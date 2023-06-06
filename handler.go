@@ -5,6 +5,7 @@ import (
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/request"
+	"github.com/jamf/regatta/proto"
 	"github.com/miekg/dns"
 )
 
@@ -12,9 +13,11 @@ const pluginName = "regatta"
 
 // Regatta is a plugin that serves zone data from Regatta data store.
 type Regatta struct {
-	Next plugin.Handler
-
+	Next  plugin.Handler
 	Zones []string
+
+	client proto.KVClient
+	table  string
 }
 
 func (r Regatta) ServeDNS(ctx context.Context, w dns.ResponseWriter, m *dns.Msg) (int, error) {
