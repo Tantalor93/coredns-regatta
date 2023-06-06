@@ -21,6 +21,8 @@ func setup(c *caddy.Controller) error {
 		r.Zones = plugin.OriginsFromArgsOrServerBlock(c.RemainingArgs(), c.ServerBlockKeys)
 		for c.NextBlock() {
 			switch c.Val() {
+			case "fallthrough":
+				r.Fall.SetZonesFromArgs(c.RemainingArgs())
 			case "endpoint":
 				if !c.NextArg() {
 					return c.ArgErr()

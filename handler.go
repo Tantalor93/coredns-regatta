@@ -7,6 +7,7 @@ import (
 
 	"github.com/coredns/coredns/plugin"
 	"github.com/coredns/coredns/plugin/etcd/msg"
+	"github.com/coredns/coredns/plugin/pkg/fall"
 	"github.com/coredns/coredns/plugin/pkg/upstream"
 	"github.com/coredns/coredns/request"
 	"github.com/jamf/regatta/proto"
@@ -19,15 +20,17 @@ const pluginName = "regatta"
 
 // Regatta is a plugin that serves zone data from Regatta data store.
 type Regatta struct {
-	Next     plugin.Handler
-	Zones    []string
+	Next  plugin.Handler
+	Zones []string
+
 	Upstream *upstream.Upstream
+	Fall     *fall.F
 
 	client proto.KVClient
 	table  string
 }
 
-func (r *Regatta) Services(ctx context.Context, state request.Request, exact bool, opt plugin.Options) ([]msg.Service, error) {
+func (r *Regatta) Services(ctx context.Context, state request.Request, exact bool, _ plugin.Options) ([]msg.Service, error) {
 	return r.Records(ctx, state, exact)
 }
 
@@ -39,7 +42,7 @@ func (r *Regatta) Lookup(ctx context.Context, state request.Request, name string
 	return r.Upstream.Lookup(ctx, state, name, typ)
 }
 
-func (r *Regatta) Records(ctx context.Context, state request.Request, exact bool) ([]msg.Service, error) {
+func (r *Regatta) Records(ctx context.Context, state request.Request, _ bool) ([]msg.Service, error) {
 	name := state.Name()
 
 	key := Key(name)
@@ -100,6 +103,14 @@ func (r *Regatta) ServeDNS(ctx context.Context, w dns.ResponseWriter, m *dns.Msg
 	switch req.QType() {
 	case dns.TypeA:
 		records, truncated, err = plugin.A(ctx, r, zone, req, nil, opt)
+	}
+
+	if err != nil && r.IsNameError(err) {
+		if r.Fall.Through(req.Name()) {
+			return plugin.NextOrFailure(r.Name(), r.Next, ctx, w, m)
+		}
+		// Make err nil when returning here, so we don't log spam for NXDOMAIN.
+		return plugin.BackendError(ctx, r, zone, dns.RcodeNameError, req, nil, opt)
 	}
 
 	if err != nil {
