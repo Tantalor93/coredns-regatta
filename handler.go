@@ -105,6 +105,10 @@ func (r *Regatta) ServeDNS(ctx context.Context, w dns.ResponseWriter, m *dns.Msg
 	switch req.QType() {
 	case dns.TypeA:
 		records, truncated, err = plugin.A(ctx, r, zone, req, nil, opt)
+	default:
+		// Do a fake A lookup, so we can distinguish between NODATA and NXDOMAIN
+		_, _, err = plugin.A(ctx, r, zone, req, nil, opt)
+
 	}
 
 	if err != nil && r.IsNameError(err) {
