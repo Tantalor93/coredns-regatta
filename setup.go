@@ -5,6 +5,7 @@ import (
 	"github.com/coredns/coredns/core/dnsserver"
 	"github.com/coredns/coredns/plugin"
 	clog "github.com/coredns/coredns/plugin/pkg/log"
+	"github.com/coredns/coredns/plugin/pkg/upstream"
 )
 
 var log = clog.NewWithPlugin(pluginName)
@@ -42,16 +43,15 @@ func setup(c *caddy.Controller) error {
 
 	client, err := createClient(endpoint, insecure)
 	if err != nil {
-		return c.Err("failed to create Regatta client")
+		return c.Errf("failed to create Regatta client due to '%v'", err)
 	}
 
 	dnsserver.GetConfig(c).AddPlugin(func(next plugin.Handler) plugin.Handler {
 		r.Next = next
 		r.client = client
-		return r
+		r.Upstream = upstream.New()
+		return &r
 	})
-
-	log.Info("Regatta plugin registered")
 
 	return nil
 }

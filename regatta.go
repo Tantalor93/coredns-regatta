@@ -3,8 +3,10 @@ package regatta
 import (
 	"crypto/tls"
 	"crypto/x509"
+	"path"
 
 	"github.com/jamf/regatta/proto"
+	"github.com/miekg/dns"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials"
 )
@@ -25,4 +27,13 @@ func createClient(endpoint string, insecure bool) (proto.KVClient, error) {
 	}
 
 	return proto.NewKVClient(conn), nil
+}
+
+// Key converts a domain name to a key in Regatta.
+func Key(s string) string {
+	l := dns.SplitDomainName(s)
+	for i, j := 0, len(l)-1; i < j; i, j = i+1, j-1 {
+		l[i], l[j] = l[j], l[i]
+	}
+	return path.Join(append([]string{"/"}, l...)...)
 }
