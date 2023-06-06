@@ -24,7 +24,7 @@ type Regatta struct {
 	Zones []string
 
 	Upstream *upstream.Upstream
-	Fall     *fall.F
+	Fall     fall.F
 
 	client proto.KVClient
 	table  string
