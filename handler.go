@@ -51,6 +51,8 @@ func (r *Regatta) Records(ctx context.Context, state request.Request, _ bool) ([
 		Key:   []byte(key),
 	}
 
+	log.Debugf("Searching for '%s' in Regatta.", key)
+
 	resp, err := r.client.Range(ctx, &rangeRequest)
 	if err != nil {
 		return nil, err
