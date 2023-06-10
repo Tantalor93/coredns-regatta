@@ -3,7 +3,6 @@ package regatta
 import (
 	"context"
 	"encoding/json"
-	"strings"
 	"time"
 
 	"github.com/coredns/coredns/plugin"
@@ -43,64 +42,22 @@ func (r *Regatta) Lookup(ctx context.Context, state request.Request, name string
 	return r.Upstream.Lookup(ctx, state, name, typ)
 }
 
-func findNextString(str string) string {
-	// Convert string to byte slice for mutation
-	bytes := []byte(str)
-
-	// Start from the last character and increment its byte value
-	i := len(bytes) - 1
-	for i >= 0 {
-		if bytes[i] < 255 {
-			bytes[i]++
-			break
-		}
-		bytes[i] = 0
-		i--
-	}
-
-	return string(bytes)
-}
-
-func (r *Regatta) Records(ctx context.Context, state request.Request, exact bool) ([]msg.Service, error) {
+func (r *Regatta) Records(ctx context.Context, state request.Request, _ bool) ([]msg.Service, error) {
 	name := state.Name()
 
 	key := Key(name)
 
 	var resp *proto.RangeResponse
 	var err error
-	if exact {
-		rangeRequest := proto.RangeRequest{
-			Table: []byte(r.table),
-			Key:   []byte(key),
-		}
-		resp, err = r.client.Range(ctx, &rangeRequest)
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		if !strings.HasSuffix(key, "/") {
-			key = key + "/"
-		}
-		rangeRequest := proto.RangeRequest{
-			Table:    []byte(r.table),
-			Key:      []byte(key),
-			RangeEnd: []byte(findNextString(key)),
-		}
-		resp, err = r.client.Range(ctx, &rangeRequest)
-		if err != nil {
-			return nil, err
-		}
-		if len(resp.Kvs) == 0 {
-			key = strings.TrimSuffix(key, "/")
-			rangeRequest := proto.RangeRequest{
-				Table: []byte(r.table),
-				Key:   []byte(key),
-			}
-			resp, err = r.client.Range(ctx, &rangeRequest)
-			if err != nil {
-				return nil, err
-			}
-		}
+
+	rangeRequest := proto.RangeRequest{
+		Table:    []byte(r.table),
+		Key:      []byte(key + state.Type() + "#"),
+		RangeEnd: []byte(key + state.Type() + "##"),
+	}
+	resp, err = r.client.Range(ctx, &rangeRequest)
+	if err != nil {
+		return nil, err
 	}
 
 	var svcs []msg.Service
@@ -183,4 +140,22 @@ func (r *Regatta) ServeDNS(ctx context.Context, w dns.ResponseWriter, m *dns.Msg
 
 func (r *Regatta) Name() string {
 	return pluginName
+}
+
+func findNextString(str string) string {
+	// Convert string to byte slice for mutation
+	bytes := []byte(str)
+
+	// Start from the last character and increment its byte value
+	i := len(bytes) - 1
+	for i >= 0 {
+		if bytes[i] < 255 {
+			bytes[i]++
+			break
+		}
+		bytes[i] = 0
+		i--
+	}
+
+	return string(bytes)
 }
