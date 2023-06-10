@@ -51,9 +51,8 @@ func (r *Regatta) Records(ctx context.Context, state request.Request, _ bool) ([
 	var err error
 
 	rangeRequest := proto.RangeRequest{
-		Table:    []byte(r.table),
-		Key:      []byte(key + state.Type() + "#"),
-		RangeEnd: []byte(key + state.Type() + "##"),
+		Table: []byte(r.table),
+		Key:   []byte(key + "#" + state.Type()),
 	}
 	resp, err = r.client.Range(ctx, &rangeRequest)
 	if err != nil {
