@@ -62,7 +62,7 @@ func (r *Regatta) Records(ctx context.Context, state request.Request, _ bool) ([
 			Request: &proto.RequestOp_RequestRange{
 				RequestRange: &proto.RequestOp_Range{
 					Key:      []byte(key + "#" + state.Type() + "#"),
-					RangeEnd: []byte(key + "#" + state.Type() + "#"),
+					RangeEnd: []byte(findNextString(key + "#" + state.Type() + "#")),
 				},
 			},
 		},
