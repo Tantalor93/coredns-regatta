@@ -47,26 +47,45 @@ func (r *Regatta) Records(ctx context.Context, state request.Request, _ bool) ([
 
 	key := Key(name)
 
-	var resp *proto.RangeResponse
+	var resp *proto.TxnResponse
 	var err error
 
-	rangeRequest := proto.RangeRequest{
-		Table: []byte(r.table),
-		Key:   []byte(key + "#" + state.Type()),
+	req := proto.TxnRequest{Success: []*proto.RequestOp{
+		{
+			Request: &proto.RequestOp_RequestRange{
+				RequestRange: &proto.RequestOp_Range{
+					Key: []byte(key + "#" + state.Type()),
+				},
+			},
+		},
+		{
+			Request: &proto.RequestOp_RequestRange{
+				RequestRange: &proto.RequestOp_Range{
+					Key:      []byte(key + "#" + state.Type() + "#"),
+					RangeEnd: []byte(key + "#" + state.Type() + "#"),
+				},
+			},
+		},
+	}, Table: []byte(r.table),
 	}
-	resp, err = r.client.Range(ctx, &rangeRequest)
+
+	resp, err = r.client.Txn(ctx, &req)
 	if err != nil {
 		return nil, err
 	}
 
 	var svcs []msg.Service
-	for _, v := range resp.Kvs {
-		var entry msg.Service
-		err := json.Unmarshal(v.Value, &entry)
-		if err != nil {
-			return svcs, err
+	for _, v := range resp.Responses {
+		if rangeResponse := v.GetResponseRange(); rangeResponse != nil {
+			for _, kv := range rangeResponse.Kvs {
+				var entry msg.Service
+				err := json.Unmarshal(kv.Value, &entry)
+				if err != nil {
+					return svcs, err
+				}
+				svcs = append(svcs, entry)
+			}
 		}
-		svcs = append(svcs, entry)
 	}
 	return svcs, nil
 }
